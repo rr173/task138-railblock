@@ -1,0 +1,24 @@
+# 编译产物
+railblock
+*.exe
+*.test
+*.out
+
+# 运行期数据库（不烤进镜像）
+*.db
+*.db-shm
+*.db-wal
+railblock.db*
+
+# 前端依赖/构建产物（本项目无 Node，但仍排除以防误入）
+node_modules/
+dist/
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
+
+# 本地测试临时
+/tmp/
+*.log
