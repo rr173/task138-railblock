@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>铁路区间闭塞与信号联锁进路引擎</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+	<h1>铁路区间闭塞与信号联锁进路引擎</h1>
+	<div class="sub">Railway Block Section &amp; Signal Interlocking Route Engine</div>
+</header>
+<main>
+	<section class="panel">
+		<h2>1. 站场图配置</h2>
+		<div class="row">
+			<input id="stCode" placeholder="站码 如 XN" />
+			<input id="stName" placeholder="站名 如 虹桥" />
+			<button id="btnStation">建车站</button>
+			<select id="stationSelect"></select>
+		</div>
+		<div class="row">
+			<input id="scName" placeholder="区段名" />
+			<select id="scKind">
+				<option value="plain">无岔区段</option>
+				<option value="switch">道岔区段</option>
+				<option value="approach">接近区段</option>
+				<option value="departure">离去区段</option>
+				<option value="bay">股道区段</option>
+			</select>
+			<button id="btnSection">建区段</button>
+		</div>
+		<div class="row">
+			<input id="swName" placeholder="道岔名" />
+			<select id="swNormal"><option value="0">定位 normal</option><option value="1">反位 reverse</option></select>
+			<select id="swSection"></select>
+			<button id="btnSwitch">建道岔</button>
+		</div>
+		<div class="row">
+			<input id="sgName" placeholder="信号机名" />
+			<select id="sgDir">
+				<option value="arrival">接车 XJ</option>
+				<option value="departure">发车 SJ</option>
+				<option value="shunt">调车 DC</option>
+			</select>
+			<label><input type="checkbox" id="sgHome" checked /> 始端 home</label>
+			<button id="btnSignal">建信号机</button>
+		</div>
+	</section>
+
+	<section class="panel">
+		<h2>2. 进路排列与运行</h2>
+		<div class="row">
+			<input id="rtCode" placeholder="进路号 如 X-1G" />
+			<select id="rtKind"><option value="train">列车进路</option><option value="shunt">调车进路</option></select>
+			<select id="rtSource"></select>
+			<input id="rtTerminal" placeholder="终端(信号ID或区段ID)" />
+			<select id="rtApproach"></select>
+			<button id="btnRoute">定义进路</button>
+			<select id="routeSelect"></select>
+			<button id="btnEstablish">排列进路</button>
+			<button id="btnCancel" class="warn">人工取消</button>
+			<button id="btnFault" class="warn">故障解锁</button>
+		</div>
+		<div class="row">
+			<input id="trCode" placeholder="车次 如 G1" />
+			<button id="btnTrain">建列车</button>
+			<select id="trainSelect"></select>
+			<select id="moveSection"></select>
+			<button id="btnOccupy">占用</button>
+			<button id="btnClear">出清</button>
+		</div>
+	</section>
+
+	<section class="panel">
+		<h2>3. 站场图状态</h2>
+		<div id="diagram" class="diagram">（选择车站后显示）</div>
+		<pre id="raw" class="raw"></pre>
+	</section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
