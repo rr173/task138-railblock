@@ -80,10 +80,11 @@ func ComputeAspect(st State) model.SignalAspect {
 // at the moment it is opened (before any train has entered). This is the same
 // as ComputeAspect on a freshly established route; factored out so the caller
 // can assert "the signal opened to permissive" without re-deriving the rule.
+//
+// A switch that already sat in its required position still counts: it must be
+// locked to and protected by this route, so its indication and position are
+// checked here exactly as ComputeAspect would.
 func AspectForOpen(r *model.Route, switches map[string]*model.Switch) model.SignalAspect {
-	if len(r.SwitchPositions) > 0 {
-		return model.AspectRed
-	}
 	diverging := false
 	for _, rsp := range r.SwitchPositions {
 		sw, ok := switches[rsp.SwitchID]

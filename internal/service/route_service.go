@@ -107,11 +107,14 @@ func (rs *RouteService) Establish(ctx context.Context, routeID string) (*model.R
 		if err := st.SetSignalProtectsRoute(ctx, tx, r.SourceSignalID, routeID); err != nil {
 			return err
 		}
-		// Recompute switches for the aspect (they were just reversed).
-		swMap := make(map[string]*model.Switch, len(res.SwitchLocks))
-		for _, swID := range res.SwitchLocks {
-			if sw, _ := st.TxGetSwitch(ctx, tx, swID); sw != nil && sw.LockedByRoute != routeID {
-				swMap[swID] = sw
+		// Recompute switches for the aspect. Every switch the route requires is
+		// included — those that were just reversed, those that already sat in
+		// their required position and are now locked to this route — so the
+		// permissive aspect reflects the positions the route is committed to.
+		swMap := make(map[string]*model.Switch, len(r.SwitchPositions))
+		for _, rsp := range r.SwitchPositions {
+			if sw, _ := st.TxGetSwitch(ctx, tx, rsp.SwitchID); sw != nil {
+				swMap[rsp.SwitchID] = sw
 			}
 		}
 		aspect := signaling.AspectForOpen(r, swMap)

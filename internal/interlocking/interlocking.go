@@ -94,7 +94,14 @@ func CheckEstablish(y *Yard, r *model.Route) (*EstablishResult, error) {
 		if !sw.HasIndication {
 			return nil, ErrSwitchLostIndication
 		}
+		// A switch already locked to another route may not be claimed, whether
+		// or not it needs to move: its position is committed elsewhere.
+		if sw.Locked && sw.LockedByRoute != r.ID {
+			return nil, ErrSwitchLocked
+		}
 		if sw.CurrentPosition != rsp.RequiredPosition {
+			// The switch must reverse to reach the required position. Its section
+			// must be free and unlocked for the move to be safe.
 			sec, ok := y.Sections[sw.SectionID]
 			if !ok {
 				return nil, ErrInvalidRoute
@@ -102,14 +109,12 @@ func CheckEstablish(y *Yard, r *model.Route) (*EstablishResult, error) {
 			if sec.Occupied {
 				return nil, ErrSwitchInOccupiedSection
 			}
-			if sw.Locked && sw.LockedByRoute != r.ID {
-				return nil, ErrSwitchLocked
-			}
 			res.SwitchMoves = append(res.SwitchMoves, SwitchMove{SwitchID: rsp.SwitchID, To: rsp.RequiredPosition})
 		}
-		if sw.CurrentPosition != rsp.RequiredPosition {
-			res.SwitchLocks = append(res.SwitchLocks, rsp.SwitchID)
-		}
+		// Every switch the route traverses is locked to this route, including
+		// one that already sat in its required position: it must be held there
+		// for the life of the route so a conflicting move cannot displace it.
+		res.SwitchLocks = append(res.SwitchLocks, rsp.SwitchID)
 	}
 	for _, conflictID := range y.Routes.ConflictsOf(r.ID) {
 		other := y.Routes.Get(conflictID)
