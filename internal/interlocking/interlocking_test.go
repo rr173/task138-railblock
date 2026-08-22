@@ -147,6 +147,39 @@ func TestDecideCancelRejectsCancelling(t *testing.T) {
 	}
 }
 
+// TestDecideCancelImmediateForNoApproach: an established route with no
+// approach section cancels immediately (nothing can be approach-locked).
+func TestDecideCancelImmediateForNoApproach(t *testing.T) {
+	y := mkYard()
+	r := &model.Route{ID: "R", State: model.RouteEstablished, Kind: model.RouteKindTrain}
+	dec, err := DecideCancel(y, r)
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if !dec.Immediate || dec.NeedTimedDelay {
+		t.Fatalf("want immediate, got %+v", dec)
+	}
+}
+
+// TestDecideCancelTimedForApproachLocked: a route already in ApproachLocked
+// (train in the approach section) cancels via the timed delay, never
+// immediately — the regression this guards against.
+func TestDecideCancelTimedForApproachLocked(t *testing.T) {
+	y := mkYard()
+	y.Sections["AP"] = &model.Section{ID: "AP", Occupied: true}
+	r := &model.Route{ID: "R", State: model.RouteApproachLocked, ApproachSectionID: "AP", Kind: model.RouteKindShunt}
+	dec, err := DecideCancel(y, r)
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if !dec.NeedTimedDelay || dec.Delay.Seconds() != 30 {
+		t.Fatalf("want timed 30s, got %+v", dec)
+	}
+	if dec.Immediate {
+		t.Fatal("approach-locked route must not cancel immediately")
+	}
+}
+
 // TestOnApproachOccupied covers the Established → ApproachLocked and the
 // Cancelling-abandon transitions.
 func TestOnApproachOccupied(t *testing.T) {

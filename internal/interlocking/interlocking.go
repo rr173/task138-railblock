@@ -306,14 +306,18 @@ type CancelDecision struct {
 	Immediate bool
 }
 
-// DecideCancel decides how to cancel a route.
+// DecideCancel decides how to cancel a route. A route is approach-locked (and
+// so must use the timed delay) when its approach section is occupied. This is
+// true both while the route is still Established with an occupied approach and
+// once it has formally transitioned to ApproachLocked; either path yields the
+// timed decision.
 func DecideCancel(y *Yard, r *model.Route) (CancelDecision, error) {
 	switch r.State {
 	case model.RouteCancelling:
 		return CancelDecision{}, ErrApproachLocked
 	case model.RouteEstablished:
 		if r.ApproachSectionID != "" {
-			if sec, ok := y.Sections[r.ApproachSectionID]; ok && sec.Occupied && r.State == model.RouteApproachLocked {
+			if sec, ok := y.Sections[r.ApproachSectionID]; ok && sec.Occupied {
 				return CancelDecision{NeedTimedDelay: true, Delay: r.Kind.ApproachLockDelay()}, nil
 			}
 		}

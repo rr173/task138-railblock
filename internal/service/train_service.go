@@ -64,7 +64,7 @@ func (ts *TrainService) applyMove(ctx context.Context, trainID, sectionID string
 				return err
 			}
 		}
-		if false && eff.ApproachLockRoute != "" {
+		if eff.ApproachLockRoute != "" {
 			r := y.Routes.Get(eff.ApproachLockRoute)
 			if r != nil {
 				if err := st.SetRouteState(ctx, tx, r.ID, model.RouteApproachLocked, derefTime(r.EstablishedAt), time.Time{}, time.Time{}); err != nil {

@@ -43,11 +43,11 @@ type Effect struct {
 	// route it belongs to. Set when a train occupies a route section.
 	SectionOnceOccupiedForRoute string
 	// ApproachLockRoute is the route to transition Established →
-	// ApproachLocked, or whose timed cancel to abandon, because the move
-	// occupied its approach section.
+	// ApproachLocked because the move occupied its approach section.
 	ApproachLockRoute string
 	// AbandonCancelRoute is a route whose in-flight timed cancel should be
-	// abandoned (train entered the route proper while cancelling).
+	// abandoned (train occupied the approach section while cancelling, so the
+	// train is now legitimately bearing down on the route).
 	AbandonCancelRoute string
 	// SectionsToUnlock are section IDs to unlock (three-point release).
 	SectionsToUnlock []string
@@ -68,18 +68,24 @@ func ApplyMove(y *interlocking.Yard, mv Move) Effect {
 		return eff
 	}
 	for _, r := range y.Routes.All() {
-		if !r.State.IsLocked() && r.State != model.RouteCancelling {
-			// But an approach-section occupy affects the route even though the
-			// approach section is not in r.Sections (it is tracked separately).
-			if mv.SectionID == r.ApproachSectionID && mv.Kind == MoveClear {
+		// An approach-section occupy affects the route regardless of lock state:
+		// it is not one of r.Sections (it is tracked separately), so it must be
+		// examined before the HasSection short-circuit. OnApproachOccupied is the
+		// pure rule that decides whether the route transitions to ApproachLocked
+		// (Established) or abandons an in-flight timed cancel (Cancelling).
+		if mv.SectionID == r.ApproachSectionID && mv.Kind == MoveOccupy {
+			res := interlocking.OnApproachOccupied(r)
+			if res.TransitionsToApproachLocked {
 				eff.ApproachLockRoute = r.ID
 			}
+			if res.AbandonsCancel {
+				eff.AbandonCancelRoute = r.ID
+			}
+		}
+		if !r.State.IsLocked() && r.State != model.RouteCancelling {
 			continue
 		}
 		if !r.HasSection(mv.SectionID) {
-			if mv.SectionID == r.ApproachSectionID && mv.Kind == MoveClear {
-				eff.ApproachLockRoute = r.ID
-			}
 			continue
 		}
 		// The move is on a route section.

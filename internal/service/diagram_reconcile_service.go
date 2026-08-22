@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"task138-railblock/internal/clock"
@@ -189,6 +190,12 @@ type replayState struct {
 // replayEvents produces the in-memory projection of the event stream. Only the
 // fields needed by ReconcileAll (route state) are tracked; the event stream is
 // authoritative for everything else.
+//
+// An approach-lock is recorded as a lock_set route event whose payload marks
+// approach_locked=1. A route that was established, then approach-locked, and
+// has not since moved to a terminal state or abandoned the lock, is rebuilt as
+// ApproachLocked so a crash while approach-locked recovers to ApproachLocked
+// (not Established) — keeping 接近占用 / 取消状态 / 延时释放 consistent.
 func replayEvents(events []*model.Event) *replayState {
 	rs := &replayState{routeStates: map[string]model.RouteState{}}
 	for _, e := range events {
@@ -207,9 +214,33 @@ func replayEvents(events []*model.Event) *replayState {
 			rs.routeStates[e.RouteID] = model.RouteCancelled
 		case model.EventDelayUnlockAbandoned:
 			rs.routeStates[e.RouteID] = model.RouteEstablished
+		case model.EventLockSet:
+			// An approach-lock marker is recorded as a lock_set route event
+			// with payload {"approach_locked":"1"}. It is only meaningful while
+			// the route is established (it must not resurrect a terminal state).
+			if e.EntityType == "route" && e.RouteID != "" && hasApproachLockedPayload(e.Payload) {
+				if rs.routeStates[e.RouteID] == model.RouteEstablished {
+					rs.routeStates[e.RouteID] = model.RouteApproachLocked
+				}
+			}
 		}
 	}
 	return rs
+}
+
+// hasApproachLockedPayload reports whether a JSON event payload marks the
+// approach_locked flag. It is tolerant: a malformed payload is treated as
+// "not approach-locked" rather than failing recovery.
+func hasApproachLockedPayload(payload string) bool {
+	if payload == "" {
+		return false
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(payload), &m); err != nil {
+		return false
+	}
+	v, _ := m["approach_locked"].(string)
+	return v == "1"
 }
 
 // keep imports referenced.

@@ -34,6 +34,40 @@ func TestApplyMoveApproachLock(t *testing.T) {
 	if !eff.NowOccupied {
 		t.Fatal("NowOccupied should be true for an occupy move")
 	}
+	if eff.AbandonCancelRoute != "" {
+		t.Fatalf("AbandonCancelRoute = %s, want empty for an established route", eff.AbandonCancelRoute)
+	}
+}
+
+// TestApplyMoveApproachOccupyAbortsCancelling: occupying the approach section
+// of a route already in Cancelling (timed release running) must set
+// AbandonCancelRoute so the train's arrival abandons the timed cancel rather
+// than letting it silently release behind a moving train.
+func TestApplyMoveApproachOccupyAbortsCancelling(t *testing.T) {
+	y := mkYard2()
+	y.Sections["AP"] = &model.Section{ID: "AP"}
+	r := &model.Route{ID: "R", State: model.RouteCancelling, ApproachSectionID: "AP"}
+	y.Routes.Add(r)
+	eff := ApplyMove(y, Move{TrainID: "T", SectionID: "AP", Kind: MoveOccupy, TS: time.Now()})
+	if eff.AbandonCancelRoute != "R" {
+		t.Fatalf("AbandonCancelRoute = %s, want R", eff.AbandonCancelRoute)
+	}
+	if eff.ApproachLockRoute != "" {
+		t.Fatalf("ApproachLockRoute = %s, want empty for a cancelling route", eff.ApproachLockRoute)
+	}
+}
+
+// TestApplyMoveApproachOccupyNoOpOnInactive: occupying the approach section of
+// a pending route has no lock effect (nothing to lock or abandon).
+func TestApplyMoveApproachOccupyNoOpOnInactive(t *testing.T) {
+	y := mkYard2()
+	y.Sections["AP"] = &model.Section{ID: "AP"}
+	r := &model.Route{ID: "R", State: model.RoutePending, ApproachSectionID: "AP"}
+	y.Routes.Add(r)
+	eff := ApplyMove(y, Move{TrainID: "T", SectionID: "AP", Kind: MoveOccupy, TS: time.Now()})
+	if eff.ApproachLockRoute != "" || eff.AbandonCancelRoute != "" {
+		t.Fatalf("pending route approach occupy should be a no-op, got %+v", eff)
+	}
 }
 
 // TestApplyMoveOccupyRouteSection: occupying a route section marks
